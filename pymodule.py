@@ -37,6 +37,8 @@ import driver
 from molutil import *
 import p4util
 from p4util.exceptions import *
+import procedures
+from procedures.proc_util import *
 
 
 def run_ccambit(name, **kwargs):
@@ -50,22 +52,16 @@ def run_ccambit(name, **kwargs):
     kwargs = p4util.kwargs_lower(kwargs)
 
     # Your plugin's psi4 run sequence goes here
-    #psi4.set_global_option('BASIS', 'sto-3g')
-    psi4.set_local_option('MYPLUGIN', 'PRINT', 1)
-
-    # Compute a SCF reference, a wavefunction is return which holds the molecule used, orbitals
-    # Fock matrices, and more
-    print('Attention! This SCF may be density-fitted.')
-    ref_wfn = kwargs.get('ref_wfn', None)
-    if ref_wfn is None:
-        ref_wfn = driver.scf_helper(name, **kwargs)
-
-    # Call the Psi4 plugin
-    # Please note that setting the reference wavefunction in this way is ONLY for plugins
-    ccambit_wfn = psi4.plugin('ccambit.so', ref_wfn)
-
-    return ccambit_wfn
-
+    if ('wfn' in kwargs):
+        if (kwargs['wfn'] == 'ccsd'):
+            psi4.set_global_option('WFN', 'CCSD')
+        elif (kwargs['wfn'] == 'ccsd(t)'):
+            psi4.set_global_option('WFN', 'CCSD_T')
+    scf_wfn = kwargs.get('ref_wfn', None)
+    if scf_wfn is None:
+        scf_wfn = driver.scf_helper(name, **kwargs)
+    check_iwl_file_from_scf_type(psi4.get_option('SCF', 'SCF_TYPE'), scf_wfn)
+    return psi4.plugin('ccambit.so', scf_wfn)
 
 # Integration with driver routines
 driver.procedures['energy']['ccambit'] = run_ccambit

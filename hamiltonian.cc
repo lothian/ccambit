@@ -22,8 +22,10 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   for(int i=0; i < ref->nirrep(); i++) 
     nfzv_ += ref->frzvpi()[i];
   nact_ = nmo_ - nfzc_ - nfzv_;
+  size_t nact = nact_;
 
-  int nact = nact_;
+  int nact2 = nact_ * nact_;
+  int nact3 = nact2 * nact_;
 
   int *mo_offset = init_int_array(ref->nirrep()); // Pitzer offsets
   for(int h=1; h < ref->nirrep(); h++) mo_offset[h] = mo_offset[h-1] + ref->nmopi()[h-1];
@@ -32,30 +34,28 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   reorder_qt((int *) ref->doccpi(), (int *) ref->soccpi(), (int *) ref->frzcpi(), (int *) ref->frzvpi(), 
              map, (int *) ref->nmopi(), ref->nirrep());
 
-  Tensor fock_ = Tensor::build(CoreTensor, "Fock Matrix", {nact,nact});
-  fock_.print(stdout);
+  Tensor fock_ = Tensor::build(CoreTensor, "Fock Matrix", {nact, nact});
+  vector<double>& fockV = fock_.data();
+  double *fockP = fockV.data();
 
   // Prepare Fock matrix in MO basis in QT ordering
-/*
   SharedMatrix Fa = ref->Fa();
   SharedMatrix Ca = ref->Ca();
   Fa->transform(Ca);
-  fock_ = block_matrix(nact, nact);
   for(int h=0; h < ref->nirrep(); h++) {
     int nmo = ref->nmopi()[h]; int nfv = ref->frzvpi()[h]; int nfc = ref->frzcpi()[h];
     for(int p=nfc; p < nmo-nfv; p++) {
       for(int q=nfc; q < nmo-nfv; q++) {
       int P = map[p+mo_offset[h]]; int Q = map[q+mo_offset[h]];
-      fock_[P-nfzc_][Q-nfzc_] = Fa->get(h,p,q);
+      fockP[(P-nfzc_)*nact_ + (Q-nfzc_)] = Fa->get(h,p,q);
       }
     }
   }
+  fock_.print(stdout);
 
   free(mo_offset);
   free(map);
-*/
 
-/*
   // Use reorder_qt() to generate a new mapping array w/o frozen core or virtual orbitals
   int *doccpi = init_int_array(ref->nirrep());
   int *nmopi = init_int_array(ref->nirrep());
@@ -76,7 +76,9 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   dpd_set_default(ints.get_dpd_id());
   dpdbuf4 K;
   global_dpd_->buf4_init(&K, PSIF_LIBTRANS_DPD, 0, ID("[A,A]"), ID("[A,A]"), ID("[A>=A]+"), ID("[A>=A]+"), 0, "MO Ints (AA|AA)");
-  ints_ = init_4d_array(nact, nact, nact, nact);
+  Tensor ints_ = Tensor::build(CoreTensor, "MO Two-Electron Integrals", {nact, nact, nact, nact});
+  vector<double>& intsV = ints_.data();
+  double *intsP = intsV.data();
   for(int h=0; h < ref->nirrep(); h++) {
     global_dpd_->buf4_mat_irrep_init(&K, h);
     global_dpd_->buf4_mat_irrep_rd(&K, h);
@@ -86,7 +88,7 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
       for(int rs=0; rs < K.params->coltot[h]; rs++) {
         int r = map2[ K.params->colorb[h][rs][0] ];
         int s = map2[ K.params->colorb[h][rs][1] ];
-        ints_[p][r][q][s] = K.matrix[h][pq][rs];
+        intsP[p*nact3 + r*nact2 + q*nact_ + s] = K.matrix[h][pq][rs];
       }
     }
     global_dpd_->buf4_mat_irrep_close(&K, h);
@@ -94,15 +96,12 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   global_dpd_->buf4_close(&K);
   psio->close(PSIF_LIBTRANS_DPD, 1);
 
-  // L(pqrs) = 2<pq|rs> - <pq|sr>  
-  L_ = init_4d_array(nact, nact, nact, nact);
-  for(int p=0; p < nact; p++)
-    for(int q=0; q < nact; q++)
-      for(int r=0; r < nact; r++)
-        for(int s=0; s < nact; s++)
-          L_[p][q][r][s] = 2*ints_[p][q][r][s] - ints_[p][q][s][r];
-*/
+  ints_.print(stdout);
 
+  // L(pqrs) = 2<pq|rs> - <pq|sr>  
+  Tensor L_ = Tensor::build(CoreTensor, "2<pq|rs> - <pq|sr>", {nact, nact, nact, nact});
+  L_("p,q,r,s") = 2.0 * ints_("p,q,r,s") - ints_("p,q,s,r");
+  L_.print(stdout);
 }
 
 Hamiltonian::~Hamiltonian()

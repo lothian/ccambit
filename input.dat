@@ -5,22 +5,23 @@ sys.path.insert(0, './..')
 import ccambit
 
 molecule {
-O
-H 1 R
-H 1 R 2 A
-
-R = .9
-A = 104.5
+0 1
+    O         0.000000000000     0.000000000000    -0.116529192243
+    H        -0.000000000000     1.344767972762     0.924701422022
+    H        -0.000000000000    -1.344767972762     0.924701422022
+no_reorient
+no_com
+units bohr
 }
 
 set {
   basis sto-3g
-}
-
-set ccambit {
-  print 1
+  freeze_core false
+  r_convergence 1e-15
+  d_convergence 1e-13
+  e_convergence 1e-15
+  maxiter 500
 }
 
 energy('ccambit')
 
-ccambit.exampleFN()

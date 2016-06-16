@@ -91,11 +91,6 @@ SharedWavefunction ccambit(SharedWavefunction ref, Options& options)
   spaces.push_back(MOSpace::all);
   boost::shared_ptr<Hamiltonian> H(new Hamiltonian(psio, ref, spaces));
 
-  using namespace ambit;
-  Tensor A = Tensor::build(CoreTensor, "A", {5,5});
-  A.print(stdout);
-
-  // Typically you would build a new wavefunction and populate it with data
   return ref;
 }
 

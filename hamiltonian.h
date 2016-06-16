@@ -19,15 +19,14 @@ public:
 protected:
   int nmo_;
   int nso_;
-  ambit::Dimension nact_;
+  int nact_;
   int nfzc_;
   int nfzv_;
   double efzc_;
 
-//  double **fock_;
   Tensor fock_;
-  double ****ints_;
-  double ****L_;
+  Tensor ints_;
+  Tensor L_;
 
   friend class CCWfn;
   friend class HBAR;
