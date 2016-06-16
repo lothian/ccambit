@@ -34,33 +34,69 @@
 #include <libpsio/psio.hpp>
 #include <ambit/tensor.h>
 
+#include <libtrans/integraltransform.h>
+#include <map>
+
+#include "hamiltonian.h"
+
 using namespace boost;
+using namespace std;
 
 namespace psi{ namespace ccambit {
 
 extern "C"
 int read_options(std::string name, Options& options)
 {
-    if (name == "CCAMBIT"|| options.read_globals()) {
-        /*- The amount of information printed to the output file -*/
-        options.add_int("PRINT", 1);
-    }
+  if (name == "CCAMBIT"|| options.read_globals()) {
+    options.add_int("PRINT", 1);
+    options.add_str("REFERENCE", "RHF");
+    options.add_str("WFN", "CCSD");
+    options.add_str("DERTYPE", "NONE");
+    options.add_int("MAXITER", 100);
+    options.add_bool("DIIS", true);
+    options.add_double("R_CONVERGENCE", 1e-7);
+    options.add_bool("OOC", false);
+  }
 
-    return true;
+  return true;
 }
 
 extern "C"
-SharedWavefunction ccambit(SharedWavefunction ref_wfn, Options& options)
+SharedWavefunction ccambit(SharedWavefunction ref, Options& options)
 {
-    int print = options.get_int("PRINT");
+  outfile->Printf("\n");
+  outfile->Printf("\t\t\t**************************\n");
+  outfile->Printf("\t\t\t*                        *\n");
+  outfile->Printf("\t\t\t*        CC-AMBIT        *\n");
+  outfile->Printf("\t\t\t*                        *\n");
+  outfile->Printf("\t\t\t**************************\n");
+  outfile->Printf("\n");
 
-    /* Your code goes here */
-    using namespace ambit;
-    Tensor A = Tensor::build(CoreTensor, "A", {5,5});
-    A.print(stdout);
+  outfile->Printf("\tWave function  = %s\n", options.get_str("WFN").c_str());
+  outfile->Printf("\tMaxiter        = %d\n", options.get_int("MAXITER"));
+  outfile->Printf("\tConvergence    = %3.1e\n", options.get_double("R_CONVERGENCE"));
+  outfile->Printf("\tDIIS           = %s\n", options.get_bool("DIIS") ?  "Yes" : "No");
+  outfile->Printf("\tOut-of-core    = %s\n", options.get_bool("OOC") ?  "Yes" : "No");
+  outfile->Printf("\tDertype        = %s\n", options.get_str("DERTYPE").c_str());
 
-    // Typically you would build a new wavefunction and populate it with data
-    return ref_wfn;
+  // Error trapping – need closed-shell SCF in place
+  if(!ref) throw PSIEXCEPTION("SCF has not been run yet!");
+  if(options.get_str("REFERENCE") != "RHF")
+    throw PSIEXCEPTION("Only for use with RHF references.");
+  for(int h=0; h < ref->nirrep(); h++)
+    if(ref->soccpi()[h]) throw PSIEXCEPTION("UGACC is for closed-shell systems only.");
+
+  boost::shared_ptr<PSIO> psio(_default_psio_lib_);
+  std::vector<boost::shared_ptr<MOSpace> > spaces;
+  spaces.push_back(MOSpace::all);
+  boost::shared_ptr<Hamiltonian> H(new Hamiltonian(psio, ref, spaces));
+
+  using namespace ambit;
+  Tensor A = Tensor::build(CoreTensor, "A", {5,5});
+  A.print(stdout);
+
+  // Typically you would build a new wavefunction and populate it with data
+  return ref;
 }
 
 }} // End namespaces
