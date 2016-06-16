@@ -38,20 +38,30 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   vector<double>& fockV = fock_.data();
   double *fockP = fockV.data();
 
+  Tensor H = Tensor::build(CoreTensor, "Core Hamiltonian Matrix", {nact, nact});
+  vector<double>& HV = H.data();
+  double *HP = HV.data();
+
+  // Prepare core Hamiltonian in MO basis in QT ordering
+
   // Prepare Fock matrix in MO basis in QT ordering
   SharedMatrix Fa = ref->Fa();
+  SharedMatrix Hcore = ref->H();
   SharedMatrix Ca = ref->Ca();
   Fa->transform(Ca);
+  Hcore->transform(Ca);
   for(int h=0; h < ref->nirrep(); h++) {
     int nmo = ref->nmopi()[h]; int nfv = ref->frzvpi()[h]; int nfc = ref->frzcpi()[h];
     for(int p=nfc; p < nmo-nfv; p++) {
       for(int q=nfc; q < nmo-nfv; q++) {
       int P = map[p+mo_offset[h]]; int Q = map[q+mo_offset[h]];
       fockP[(P-nfzc_)*nact_ + (Q-nfzc_)] = Fa->get(h,p,q);
+      HP[(P-nfzc_)*nact_ + (Q-nfzc_)] = Hcore->get(h,p,q);
       }
     }
   }
   fock_.print(stdout);
+  H.print(stdout);
 
   free(mo_offset);
   free(map);
