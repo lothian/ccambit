@@ -34,12 +34,12 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   reorder_qt((int *) ref->doccpi(), (int *) ref->soccpi(), (int *) ref->frzcpi(), (int *) ref->frzvpi(), 
              map, (int *) ref->nmopi(), ref->nirrep());
 
-  Tensor fock_ = Tensor::build(CoreTensor, "Fock Matrix", {nact, nact});
+  fock_ = Tensor::build(CoreTensor, "Fock Matrix", {nact, nact});
   vector<double>& fockV = fock_.data();
   double *fockP = fockV.data();
 
-  Tensor H = Tensor::build(CoreTensor, "Core Hamiltonian Matrix", {nact, nact});
-  vector<double>& HV = H.data();
+  Hcore_ = Tensor::build(CoreTensor, "Core Hamiltonian Matrix", {nact, nact});
+  vector<double>& HV = Hcore_.data();
   double *HP = HV.data();
 
   // Prepare core Hamiltonian in MO basis in QT ordering
@@ -60,8 +60,6 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
       }
     }
   }
-  fock_.print(stdout);
-  H.print(stdout);
 
   free(mo_offset);
   free(map);
@@ -86,7 +84,7 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   dpd_set_default(ints.get_dpd_id());
   dpdbuf4 K;
   global_dpd_->buf4_init(&K, PSIF_LIBTRANS_DPD, 0, ID("[A,A]"), ID("[A,A]"), ID("[A>=A]+"), ID("[A>=A]+"), 0, "MO Ints (AA|AA)");
-  Tensor ints_ = Tensor::build(CoreTensor, "MO Two-Electron Integrals", {nact, nact, nact, nact});
+  ints_ = Tensor::build(CoreTensor, "MO Two-Electron Integrals", {nact, nact, nact, nact});
   vector<double>& intsV = ints_.data();
   double *intsP = intsV.data();
   for(int h=0; h < ref->nirrep(); h++) {
@@ -106,21 +104,13 @@ Hamiltonian::Hamiltonian(boost::shared_ptr<PSIO> psio, boost::shared_ptr<Wavefun
   global_dpd_->buf4_close(&K);
   psio->close(PSIF_LIBTRANS_DPD, 1);
 
-  ints_.print(stdout);
-
   // L(pqrs) = 2<pq|rs> - <pq|sr>  
-  Tensor L_ = Tensor::build(CoreTensor, "2<pq|rs> - <pq|sr>", {nact, nact, nact, nact});
+  L_ = Tensor::build(CoreTensor, "2<pq|rs> - <pq|sr>", {nact, nact, nact, nact});
   L_("p,q,r,s") = 2.0 * ints_("p,q,r,s") - ints_("p,q,s,r");
-  L_.print(stdout);
 }
 
 Hamiltonian::~Hamiltonian()
 {
-/*
-  free_4d_array(ints_, nact_, nact_, nact_);
-  free_4d_array(L_, nact_, nact_, nact_);
-  free_block(fock_); 
-*/
 }
 
 }} // namespace psi::ccambit

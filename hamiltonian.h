@@ -24,6 +24,7 @@ protected:
   int nfzv_;
   double efzc_;
 
+  Tensor Hcore_;
   Tensor fock_;
   Tensor ints_;
   Tensor L_;

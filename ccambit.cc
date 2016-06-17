@@ -38,6 +38,7 @@
 #include <map>
 
 #include "hamiltonian.h"
+#include "ccwfn.h"
 
 using namespace boost;
 using namespace std;
@@ -90,6 +91,8 @@ SharedWavefunction ccambit(SharedWavefunction ref, Options& options)
   std::vector<boost::shared_ptr<MOSpace> > spaces;
   spaces.push_back(MOSpace::all);
   boost::shared_ptr<Hamiltonian> H(new Hamiltonian(psio, ref, spaces));
+
+  boost::shared_ptr<CCWfn> cc(new CCWfn(ref, H, options));
 
   return ref;
 }
