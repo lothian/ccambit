@@ -80,18 +80,24 @@ CCWfn::CCWfn(boost::shared_ptr<Wavefunction> reference, boost::shared_ptr<Hamilt
 
   outfile->Printf("\n\t SCF energy?  %20.15f\n", Eone + Etwo + molecule_->nuclear_repulsion_energy());
 
-/*
   // Prepare energy denominators
   int no = no_;
   int nv = nv_;
   Tensor fock = H_->fock_;
   Tensor ints = H_->ints_;
 
-  D1_ = block_matrix(no,nv);
+  D1_ = Tensor::build(CoreTensor, "D(i,a) Denominators", {(size_t) no, (size_t) nv});
+  vector<double>& D1V = D1_.data();
+  double *D1P = D1V.data();
+  vector<double>& fockV = fock.data();
+  double *fockP = fockV.data();
   for(int i=0; i < no; i++)
     for(int a=0; a < nv; a++)
-      D1_[i][a] = fock[i][i] - fock[a+no][a+no];
+      D1P[i*nv + a] = fockP[i*nact+i] - fockP[(a+no)*nact+(a+no)];
 
+  D1_.print(stdout);
+
+/*
   D2_ = init_4d_array(no,no,nv,nv);
   for(int i=0; i < no; i++)
     for(int j=0; j < no; j++)
